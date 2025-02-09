@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 15s  # כל 15 שניות Prometheus יאסוף נתונים
+
+scrape_configs:
+  - job_name: 'front-service'
+    static_configs:
+      - targets: ['front-service:5000']
+
+  - job_name: 'core-service'
+    static_configs:
+      - targets: ['core-service:5001']
