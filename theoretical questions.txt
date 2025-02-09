@@ -1,0 +1,99 @@
+4. How to Use the Dashboard to Detect Slow APIs-
+Look at the "API Response Times" Panel-
+This panel should display P90, P99, and average response times over time.
+4️⃣ Look for spikes in response time that exceed 2000ms
+If P90 (90th percentile) response time > 2000ms, the API is slow.
+If P99 (99th percentile) response time > 2000ms, the API is critically slow.
+
+Which Chart/Metric Would Indicate the Issue- 
+
+histogram_quantile(0.9,sum(rate(response_time_seconds_bucket[5m])) by (le))
+
+- Shows P90 response time – if this is > 2000ms, 10% of requests are slow.
+
+histogram_quantile(0.99,sum(rate(response_time_seconds_bucket[5m])) by (le))
+
+- Shows P99 response time – if this is > 2000ms, 1% of requests are extremely slow.
+
+sum(rate(response_time_seconds_sum[5m])) / sum(rate(response_time_seconds_count[5m]))
+
+- (Shows the average response time – useful for detecting general slowness.)
+
+5.  How to Use the Dashboard to Detect High Error Rates?
+
+Find the "Error Rate" panel
+
+This panel shows how many requests returned errors (4xx / 5xx) out of total requests.
+Check if the error rate exceeds 30%
+If more than 30% of requests return 4xx or 5xx, there is a serious issue!
+
+Which Metric or Visualization Highlights the Issue? "Error Rate" Panel in Grafana
+PromQL Query to Show the Error Rate:
+
+sum(rate(http_requests_total{status=~"4..|5.."}[5m])) / sum(rate(http_requests_total[5m])) * 100
+
+- How it works:
+Counts all requests that returned an error (4xx or 5xx)
+Divides by the total number of requests
+Multiplies by 100 to get the percentage
+* If the graph shows a value above 30%, the API is experiencing high error rates!
+
+
+6. 
+- High API Latency (P90 > 2000ms):
+Detects slow API responses.
+
+- High Error Rate (>30%)
+
+- Low Request Throughput (<10 requests/sec): Indicates reduced traffic, possibly due to system failures.
+
+- Flask Service Down:	
+Detects when Flask is unreachable by Prometheus.
+
+- Prometheus Not Scraping Metrics:
+Alerts when Prometheus stops collecting metrics.
+
+
+Choosing One Alert & Creating a Runbook
+
+Selected Alert: High API Latency (P90 > 2000ms)
+
+histogram_quantile(0.9,sum(rate(response_time_seconds_bucket[5m])) by (le)) > 2
+
+Runbook for Investigating & Troubleshooting High Latency
+
+1. a. Check Alert in Grafana:
+Go to "Alerting" → "Triggered Alerts"
+Locate "High API Latency" alert
+b. Check the Affected API Endpoint:
+Look at which API (/deposit or /withdraw) is slow.
+Run this PromQL query in Prometheus:
+histogram_quantile(0.9, sum(rate(response_time_seconds_bucket{endpoint="/withdraw"}[5m])) by (le))
+If /withdraw is slower than /deposit, focus on that endpoint.
+2.
+Possible Cause	-Increased Traffic		
+How to Check?- Check request rate: sum(rate(http_requests_total[5m]))	
+Next Steps -If high traffic, consider scaling.
+
+Possible Cause-Slow Database Queries	
+How to Check- ?Check Flask logs: python app.py	
+Next Steps -If slow SQL queries, optimize indexes.
+
+Possible Cause	- Insufficient Resources	
+How to Check-Check CPU & RAM: docker stats	
+Next Steps -If usage is high, increase resources.
+
+Possible Cause	-Bug in API Code	
+How to Check- Review Flask logs	
+Next Steps -Fix performance issues in the code.
+
+3.
+a. Restart Slow Services (if necessary):
+docker restart flask-app
+b. Optimize API Logic (if needed)
+
+If the API is slow due to long computations, consider asynchronous processing. 
+c. Monitor After Fixes
+Check if latency is improving by re-running:
+histogram_quantile(0.9, sum(rate(response_time_seconds_bucket[5m])) by (le))
+If latency is below 2000ms, close the alert.
